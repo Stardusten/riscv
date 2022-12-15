@@ -29,6 +29,10 @@ wire    [`RegBus]       id_ex_s1data    ;
 wire    [`RegBus]       id_ex_s2data    ;
 wire    [`RegAddrBus]   id_ex_rd        ;
 wire                    id_ex_regwe     ;
+wire    [`RegAddrBus]   id_ex_reg1addr  ;
+wire                    id_ex_reg1en    ;
+wire    [`RegAddrBus]   id_ex_reg2addr  ;
+wire                    id_ex_reg2en    ;
 
 // 连接 EX 与 EX/MEM
 wire    [`RegAddrBus]   ex_rd           ;
@@ -89,14 +93,23 @@ id_ex id_ex0(
     .clk(clk), .rst(rst),
     // 来自 ID 的输入
     .alusel(id_alusel), .s1data(id_s1data), .s2data(id_s2data), .rd(id_rd), .regwe(id_regwe),
+    .reg1addr(id_reg1addr), .reg1en(id_reg1re), .reg2addr(id_reg2addr), .reg2en(id_reg2re),
     // 送到 EX 的输出
-    .alusel_o(id_ex_alusel), .s1data_o(id_ex_s1data), .s2data_o(id_ex_s2data), .rd_o(id_ex_rd), .regwe_o(id_ex_regwe)
+    .alusel_o(id_ex_alusel), .s1data_o(id_ex_s1data), .s2data_o(id_ex_s2data), .rd_o(id_ex_rd), .regwe_o(id_ex_regwe),
+    .reg1addr_o(id_ex_reg1addr), .reg1en_o(id_ex_reg1en),
+    .reg2addr_o(id_ex_reg2addr), .reg2en_o(id_ex_reg2en)
 );
 
 ex ex0(
     .rst(rst),
     // 来自 ID/EX 的输入
     .alusel(id_ex_alusel), .s1data(id_ex_s1data), .s2data(id_ex_s2data), .rd(id_ex_rd), .regwe(id_ex_regwe),
+    .reg1addr(id_ex_reg1addr), .reg1en(id_ex_reg1en),
+    .reg2addr(id_ex_reg2addr), .reg2en(id_ex_reg2en),
+    // 来自 EX/MEM 的输入
+    .ex_mem_rd(ex_mem_rd), .ex_mem_regwe(ex_mem_regwe), .ex_mem_wbdata(ex_mem_wbdata),
+    // 来自 MEM/WB 的输入
+    .wb_rd(wb_rd), .wb_regwe(wb_regwe), .wb_wbdata(wb_wbdata),
     // 送到 EX/MEM 的输出
     .rd_o(ex_rd), .regwe_o(ex_regwe), .result(ex_result)
 );

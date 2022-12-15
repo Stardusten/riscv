@@ -44,48 +44,6 @@ assign imm = isRtype ? {32{1'b0}} :
              isJtype ? {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0} :
              {32{1'b0}}; // 未知指令
 
-// always @(*) begin
-//     if (rst == `Enabled) begin
-//         reg1addr     <=  `NopRegAddr    ;
-//         reg2addr     <=  `NopRegAddr    ;
-//         reg1re       <=  `Disabled      ;
-//         reg2re       <=  `Disabled      ;
-//         alusel       <=  `AluNop        ;
-//         s1data       <=  `Zero          ;
-//         s2data       <=  `Zero          ;
-//         rd           <=  `NopRegAddr    ;
-//         regwe        <=  `Disabled      ;
-//     end else begin
-//         reg2addr        <=  inst[24:20] ;
-//         if (isItype == `True && funct3 == 3'b110) begin
-//             // 只考虑 ORI 指令
-//             rd          <=  inst[11:7]  ;
-//             regwe       <=  `Enabled    ;
-//             alusel      <=  `AluOr      ;
-//             reg1re      <=  `True       ;   // 需要第一个寄存器的值
-//             reg1addr    <=  inst[19:15] ;
-//             reg2re      <=  `False      ;   // 不需要第二个寄存器的值，操作数 2 是 imm
-//             reg2addr    <=  `NopRegAddr ;
-//         end else begin
-//             // TODO impl other types
-//         end
-
-//         // 确定操作数 1 是来自寄存器还是立即数
-//         if (reg1re == `True) begin
-//             s1data      <=  reg1data    ;
-//         end else begin
-//             s1data      <=  imm         ;
-//         end
-
-//         // 确定操作数 2 是来自寄存器还是立即数
-//         if (reg2re == `True) begin
-//             s2data      <=  reg2data     ;
-//         end else begin
-//             s1data      <=  imm         ;
-//         end
-//     end
-// end
-
 always @(*) begin
     if (rst == `Enabled) begin
         reg1addr        <=  `NopRegAddr    ;
