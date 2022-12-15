@@ -19,13 +19,18 @@ always @(*) begin
     if (rst == `Enabled) begin
         result  <= `Zero;
     end else begin
-        case (alusel)
-            `AluOr: begin
-                result  <= s1data | s2data;
-            end
-            default: begin
-                result  <= `Zero; // TODO impl other types
-            end
+        case (alusel) // 根据 alusel 选择运算类型
+            `AluAdd     :   result  <=  $signed(s1data) + $signed(s2data)       ;
+            `AluSub     :   result  <=  $signed(s1data) - $signed(s2data)       ;
+            `AluSll     :   result  <=  s1data << s2data                        ;
+            `AluSrl     :   result  <=  s1data >> s2data                        ;
+            `AluSra     :   result  <=  s1data >>> s2data                       ;
+            `AluXor     :   result  <=  s1data ^ s2data                         ;
+            `AluOr      :   result  <=  s1data | s2data                         ;
+            `AluAnd     :   result  <=  s1data & s2data                         ;
+            `AluUlt     :   result  <=  $unsigned(s1data) < $unsigned(s2data)   ;
+            `AluSlt     :   result  <=  $signed(s1data) < $signed(s2data)       ;
+            default     :   result  <= `Zero                                    ;
         endcase
     end
 end

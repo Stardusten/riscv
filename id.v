@@ -44,45 +44,108 @@ assign imm = isRtype ? {32{1'b0}} :
              isJtype ? {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0} :
              {32{1'b0}}; // 未知指令
 
+// always @(*) begin
+//     if (rst == `Enabled) begin
+//         reg1addr     <=  `NopRegAddr    ;
+//         reg2addr     <=  `NopRegAddr    ;
+//         reg1re       <=  `Disabled      ;
+//         reg2re       <=  `Disabled      ;
+//         alusel       <=  `AluNop        ;
+//         s1data       <=  `Zero          ;
+//         s2data       <=  `Zero          ;
+//         rd           <=  `NopRegAddr    ;
+//         regwe        <=  `Disabled      ;
+//     end else begin
+//         reg2addr        <=  inst[24:20] ;
+//         if (isItype == `True && funct3 == 3'b110) begin
+//             // 只考虑 ORI 指令
+//             rd          <=  inst[11:7]  ;
+//             regwe       <=  `Enabled    ;
+//             alusel      <=  `AluOr      ;
+//             reg1re      <=  `True       ;   // 需要第一个寄存器的值
+//             reg1addr    <=  inst[19:15] ;
+//             reg2re      <=  `False      ;   // 不需要第二个寄存器的值，操作数 2 是 imm
+//             reg2addr    <=  `NopRegAddr ;
+//         end else begin
+//             // TODO impl other types
+//         end
+
+//         // 确定操作数 1 是来自寄存器还是立即数
+//         if (reg1re == `True) begin
+//             s1data      <=  reg1data    ;
+//         end else begin
+//             s1data      <=  imm         ;
+//         end
+
+//         // 确定操作数 2 是来自寄存器还是立即数
+//         if (reg2re == `True) begin
+//             s2data      <=  reg2data     ;
+//         end else begin
+//             s1data      <=  imm         ;
+//         end
+//     end
+// end
+
 always @(*) begin
     if (rst == `Enabled) begin
-        reg1addr     <=  `NopRegAddr    ;
-        reg2addr     <=  `NopRegAddr    ;
-        reg1re       <=  `Disabled      ;
-        reg2re       <=  `Disabled      ;
-        alusel       <=  `AluNop        ;
-        s1data       <=  `Zero          ;
-        s2data       <=  `Zero          ;
-        rd           <=  `NopRegAddr    ;
-        regwe        <=  `Disabled      ;
+        reg1addr        <=  `NopRegAddr    ;
+        reg2addr        <=  `NopRegAddr    ;
+        reg1re          <=  `Disabled      ;
+        reg2re          <=  `Disabled      ;
+        alusel          <=  `AluNop        ;
+        s1data          <=  `Zero          ;
+        s2data          <=  `Zero          ;
+        rd              <=  `NopRegAddr    ;
+        regwe           <=  `Disabled      ;
     end else begin
-        reg2addr        <=  inst[24:20] ;
-        if (isItype == `True && funct3 == 3'b110) begin
-            // 只考虑 ORI 指令
-            rd          <=  inst[11:7]  ;
-            regwe       <=  `Enabled    ;
-            alusel      <=  `AluOr      ;
-            reg1re      <=  `True       ;   // 需要第一个寄存器的值
-            reg1addr    <=  inst[19:15] ;
-            reg2re      <=  `False      ;   // 不需要第二个寄存器的值，操作数 2 是 imm
-            reg2addr    <=  `NopRegAddr ;
-        end else begin
-            // TODO impl other types
+
+        // 计算 alusel
+        if (isItype) begin
+            case (funct3)
+                3'b000  :   alusel  <=   `AluAdd                                    ;
+                3'b001  :   alusel  <=   `AluSll                                    ;
+                3'b010  :   alusel  <=   `AluSlt                                    ;
+                3'b011  :   alusel  <=   `AluUlt                                    ;
+                3'b100  :   alusel  <=   `AluXor                                    ;
+                3'b101  :   alusel  <=   funct7 == 7'b0100000 ? `AluSra : `AluSrl   ;
+                3'b110  :   alusel  <=   `AluOr                                     ;
+                3'b111  :   alusel  <=   `AluAnd                                    ;
+            endcase
+        end else if (isRtype) begin
+            case (funct3)
+                3'b000  :   alusel  <=   funct7 == 7'b0100000 ? `AluSub : `AluAnd   ;
+                3'b001  :   alusel  <=   `AluSll                                    ;
+                3'b010  :   alusel  <=   `AluSlt                                    ;
+                3'b011  :   alusel  <=   `AluUlt                                    ;
+                3'b100  :   alusel  <=   `AluXor                                    ;
+                3'b101  :   alusel  <=   funct7 == 7'b0100000 ? `AluSra : `AluSrl   ;
+                3'b110  :   alusel  <=   `AluOr                                     ;
+                3'b111  :   alusel  <=   `AluAnd                                    ;
+            endcase
         end
 
-        // 确定操作数 1 是来自寄存器还是立即数
-        if (reg1re == `True) begin
-            s1data      <=  reg1data    ;
-        end else begin
-            s1data      <=  imm         ;
-        end
+        case (opcode)
+            `IOpcode1: begin // I-type 算术指令：op rd, rs1, imm
+                rd          <=  inst[11:7]      ; // 需要写回
+                regwe       <=  `Enabled        ;
+                reg1re      <=  `True           ; // 第一个操作数为寄存器
+                reg1addr    <=  inst[19:15]     ;
+                reg2re      <=  `False          ; // 第二个操作数为立即数
+                reg2addr    <=  `NopRegAddr     ;
+            end
+            `ROpcode: begin // R-type 算术指令：op rd, rs1, rs2
+                rd          <=  inst[11:7]      ; // 需要写回
+                regwe       <=  `Enabled        ;
+                reg1re      <=  `True           ; // 第一个操作数为寄存器
+                reg1addr    <=  inst[19:15]     ;
+                reg2re      <=  `True           ; // 第二个操作数也为寄存器
+                reg2addr    <=  inst[24:20]     ;
+            end
+        endcase
 
-        // 确定操作数 2 是来自寄存器还是立即数
-        if (reg2re == `True) begin
-            s2data      <=  reg2data     ;
-        end else begin
-            s1data      <=  imm         ;
-        end
+        //  确定操作数是来自寄存器还是立即数
+        s1data  <=  reg1re ? reg1data : imm ;
+        s2data  <=  reg2re ? reg2data : imm ;
     end
 end
 

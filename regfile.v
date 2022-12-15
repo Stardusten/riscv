@@ -14,33 +14,34 @@ module regfile(
     output  reg     [`RegBus]       rdata2   // 读数据 2
 );
 
-reg[`RegBus]    regs[0:`RegNum - 1];
+reg     [`RegBus]    regs[0:`RegNum - 1];
 
+// 初始化为全 0
+integer i;
+initial begin
+    for (i = 0; i < `RegNum; i = i + 1) begin
+        regs[i] <= `Zero;
+    end
+end
+
+// 上升沿写
 always @(posedge clk) begin
+    if (rst == `Disabled && we == `Enabled) begin
+        regs[waddr] <= wdata;
+    end
+end
+
+// 下降沿读
+always @(negedge clk) begin
     if (rst == `Enabled) begin
         rdata1 = `Zero;
         rdata2 = `Zero;
     end else begin
-        if (we == `Enabled) begin
-            regs[waddr] <= wdata;
-        end
         if (re1 == `Enabled) begin
-            // 解决译码 - 回写冲突
-            // 如果下一指令译码时需要访问上一指令回写的目标寄存器，
-            // 则直接将上一指令要写的数据作为下一指令读出的数据
-            if ((raddr1 == waddr) && (we == `Enabled)) begin
-                rdata1  <=  wdata           ;
-            end else begin
-                rdata1  <= regs[raddr1]     ;
-            end
+            rdata1  <= regs[raddr1];
         end
         if (re2 == `Enabled) begin
-            // 解决译码 - 回写冲突
-            if ((raddr2 == waddr) && (we == `Enabled)) begin
-                rdata2  <=  wdata           ;
-            end else begin
-                rdata2  <=  regs[raddr2]    ;
-            end
+            rdata2  <=  regs[raddr2];
         end
     end
 end

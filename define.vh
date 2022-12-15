@@ -28,9 +28,14 @@
 `define     JOpcode         7'b1101111 // jal
 
 // 支持的五个 ALU 操作
-`define     AluNop          4'b0000
-`define     AluAnd          4'b0000
-`define     AluOr           4'b0001
-`define     AluAdd          4'b0010
-`define     AluSub          4'b0110
-`define     AluSlt          4'b1100
+`define     AluNop          4'b0000 // 空操作
+`define     AluAdd          4'b0001 // 加
+`define     AluSub          4'b0010 // 减
+`define     AluSll           4'b0011 // 左移
+`define     AluSrl          4'b0100 // 逻辑右移
+`define     AluSra          4'b0101 // 算术右移
+`define     AluXor          4'b0110 // 异或
+`define     AluOr           4'b0111 // 或
+`define     AluAnd          4'b1000 // 与
+`define     AluUlt          4'b1001 // 无符号小于
+`define     AluSlt          4'b1010 // 有符号小于
