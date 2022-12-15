@@ -25,10 +25,22 @@ always @(posedge clk) begin
             regs[waddr] <= wdata;
         end
         if (re1 == `Enabled) begin
-            rdata1  <= regs[raddr1];
+            // 解决译码 - 回写冲突
+            // 如果下一指令译码时需要访问上一指令回写的目标寄存器，
+            // 则直接将上一指令要写的数据作为下一指令读出的数据
+            if ((raddr1 == waddr) && (we == `Enabled)) begin
+                rdata1  <=  wdata           ;
+            end else begin
+                rdata1  <= regs[raddr1]     ;
+            end
         end
         if (re2 == `Enabled) begin
-            rdata2 <= regs[raddr2];
+            // 解决译码 - 回写冲突
+            if ((raddr2 == waddr) && (we == `Enabled)) begin
+                rdata2  <=  wdata           ;
+            end else begin
+                rdata2  <=  regs[raddr2]    ;
+            end
         end
     end
 end
