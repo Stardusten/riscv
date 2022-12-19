@@ -1,24 +1,23 @@
 `include "define.vh"
 
 module pc(
-	input	wire					clk	,
-	input	wire					rst	,
-	output	reg		[`InstAddrBus]	pc	,
+	input	wire					clk			,
+	input	wire					rst			,
+	input	wire					stallreq	,
+	input	wire					br 			, // 是否跳转
+	input	wire	[`RegBus]		bt			, // 跳转目标
+	output	reg		[`InstAddrBus]	pc			,
 	output	reg						ce	
 );
 
 always @(posedge clk) begin
-	if (rst == `Enabled) begin
-		ce <= `Disabled;
-	end else begin
-		ce <= `Enabled;
-	end
 
-	if (ce == `Disabled) begin
-		pc <= `Zero;
-	end else begin
-		pc <= pc + 4'h4;
-	end
+	ce <= ~ rst;
+
+	pc	<=	ce == `Disabled		?	`Zero
+	    :	stallreq == `True	?	pc		// 暂停
+		:	br == `True			?	bt		// 跳转
+		:	pc + 4'h4;						// +4
 end
 
 endmodule

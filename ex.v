@@ -19,6 +19,7 @@ module ex(
     input   wire                    wb_regwe        ,
     input   wire    [`RegBus]       wb_wbdata       ,
     // ------------------------------
+    output  reg                     stallreq        , // TODO disabled 默认
     output  reg     [`RegAddrBus]   rd_o            ,
     output  reg                     regwe_o         ,
     output  reg     [`RegBus]       result             // 运算结果
@@ -35,6 +36,8 @@ assign s2data_n = ex_mem_regwe == `True && reg2en == `True && ex_mem_rd == reg2a
             :   s2data;
 
 always @(*) begin
+    // TODO
+    stallreq  <=  `Disabled; // TODO 执行阶段暂时不需要停止流水线
     // rd 和 regwe 直接送入下一阶段
     rd_o    <=  rd;
     regwe_o <=  regwe;

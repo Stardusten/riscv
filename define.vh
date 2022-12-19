@@ -11,7 +11,7 @@
 `define     RomMemSize  7:0           // ROM 按字节寻址
 `define     RomMemNum   128
 `define     RomFile     "C:\\Users\\xx\\Desktop\\arch\\riscv\\rom.txt"
-
+`define     StallCtlBus 5:0
 `define     True        1'b1
 `define     False       1'b0
 
@@ -31,7 +31,7 @@
 `define     AluNop          4'b0000 // 空操作
 `define     AluAdd          4'b0001 // 加
 `define     AluSub          4'b0010 // 减
-`define     AluSll           4'b0011 // 左移
+`define     AluSll          4'b0011 // 左移
 `define     AluSrl          4'b0100 // 逻辑右移
 `define     AluSra          4'b0101 // 算术右移
 `define     AluXor          4'b0110 // 异或
@@ -39,3 +39,11 @@
 `define     AluAnd          4'b1000 // 与
 `define     AluUlt          4'b1001 // 无符号小于
 `define     AluSlt          4'b1010 // 有符号小于
+
+// B-type 指令的 funt3
+`define     Beq             3'b000
+`define     Bne             3'b001
+`define     Blt             3'b100
+`define     Bge             3'b101
+`define     Bltu             3'b110
+`define     Bgeu             3'b111
