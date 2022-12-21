@@ -7,9 +7,13 @@
 `define     RegBus      31:0        // Regfile 数据总线宽度
 `define     RegNum      32
 `define     AluSelBus   3:0
+`define     DataAddrBus 31:0
+`define     DataBus     31:0
 `define     NopRegAddr  5'b00000
 `define     RomMemSize  7:0           // ROM 按字节寻址
 `define     RomMemNum   128
+`define     RamMemSize  7:0           // RAM 按字节寻址
+`define     RamMemNum   128
 `define     RomFile     "C:\\Users\\xx\\Desktop\\arch\\riscv\\rom.txt"
 `define     StallCtlBus 5:0
 `define     True        1'b1
@@ -27,7 +31,7 @@
 `define     UOpcode2        7'b0010111 // auipc
 `define     JOpcode         7'b1101111 // jal
 
-// 支持的五个 ALU 操作
+// 支持的 ALU 操作
 `define     AluNop          4'b0000 // 空操作
 `define     AluAdd          4'b0001 // 加
 `define     AluSub          4'b0010 // 减
@@ -40,10 +44,22 @@
 `define     AluUlt          4'b1001 // 无符号小于
 `define     AluSlt          4'b1010 // 有符号小于
 
+`define     LSBus           2:0
+`define     NoLoad          3'b111
+`define     LoadByte        3'b000
+`define     LoadHalf        3'b001
+`define     LoadWord        3'b010
+`define     LoadByteU       3'b100
+`define     LoadHalfU       3'b101
+`define     NoStore         3'b111
+`define     StoreByte       3'b000
+`define     StoreHalf       3'b001
+`define     StoreWord       3'b010
+
 // B-type 指令的 funt3
 `define     Beq             3'b000
 `define     Bne             3'b001
 `define     Blt             3'b100
 `define     Bge             3'b101
-`define     Bltu             3'b110
-`define     Bgeu             3'b111
+`define     Bltu            3'b110
+`define     Bgeu            3'b111

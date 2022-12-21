@@ -24,7 +24,12 @@ module id(
     output  reg                     regwe_o         , // 连 regfile，寄存器的读使能
     output  reg                     stallreq_o      , // 是否暂停流水线
     output  reg                     br_o            , // 是否跳转
-    output  reg     [`RegBus]       bt_o              // 跳转目标
+    output  reg     [`RegBus]       bt_o            , // 跳转目标
+    output  reg     [`LSBus]        loadctl_o       , // load 控制信号
+    output  reg     [`LSBus]        storectl_o      , // store 控制信号
+    output  reg     [`RegBus]       storedata_o     , // 要写的数据
+    output  reg                     fromreg1        , // s1data_o 是否来自寄存器，用于判断是否要做数据前推
+    output  reg                     fromreg2          // s2data_o 是否来自寄存器，用于判断是否要做数据前推
 );
 
 wire    [6:0]           opcode                                                   ;
@@ -35,12 +40,12 @@ wire    [`RegBus]       imm, reg1data_n, reg2data_n, rd                         
 wire                    isRtype, isItype, isStype, isBtype, isUtype, isJtype, br ;
 wire    [`RegAddrBus]   reg1addr, reg2addr                                       ;
 
-assign opcode   =   inst[6:0]       ;
-assign funct3   =   inst[14:12]     ;
-assign funct7   =   inst[31:25]     ;
-assign reg1addr =   inst[19:15]     ;
-assign reg2addr =   inst[24:20]     ;
-assign rd       =   inst[11:7]      ;
+assign opcode   =   inst[6:0]                                                    ;
+assign funct3   =   inst[14:12]                                                  ;
+assign funct7   =   inst[31:25]                                                  ;
+assign reg1addr =   inst[19:15]                                                  ;
+assign reg2addr =   inst[24:20]                                                  ;
+assign rd       =   inst[11:7]                                                   ;
 
 // 计算 alusel
 assign alusel   = isItype
@@ -111,6 +116,11 @@ always @(*) begin
         stallreq_o      <=  `Disabled       ;
         br_o            <=  `Disabled       ;
         bt_o            <=  `Zero           ;
+        loadctl_o       <=  `NoLoad         ;
+        storectl_o      <=  `NoStore        ;
+        storedata_o     <=  `Zero           ;
+        fromreg1        <=  `Disabled       ;
+        fromreg2        <=  `Disabled       ;
     end else begin
         case (opcode)
             `IOpcode1: begin // I-type 算术指令：op rd, rs1, imm
@@ -126,6 +136,11 @@ always @(*) begin
                 stallreq_o      <=  `Disabled       ;
                 br_o            <=  `Disabled       ;
                 bt_o            <=  `Zero           ;
+                loadctl_o       <=  `NoLoad         ;
+                storectl_o      <=  `NoStore        ;
+                storedata_o     <=  `Zero           ;
+                fromreg1        <=  `Enabled        ;
+                fromreg2        <=  `Enabled        ;
             end
             `ROpcode: begin // R-type 算术指令：op rd, rs1, rs2
                 reg1addr_o      <=  reg1addr        ;
@@ -140,6 +155,11 @@ always @(*) begin
                 stallreq_o      <=  `Disabled       ;
                 br_o            <=  `Disabled       ;
                 bt_o            <=  `Zero           ;
+                loadctl_o       <=  `NoLoad         ;
+                storectl_o      <=  `NoStore        ;
+                storedata_o     <=  `Zero           ;
+                fromreg1        <=  `Enabled        ;
+                fromreg2        <=  `Enabled        ;
             end
             `BOpcode: begin // B-type 分支指令：op rs1, rs2, imm
                 // 存在数据相关
@@ -160,6 +180,11 @@ always @(*) begin
                     stallreq_o      <=  `Enabled        ; // 暂停流水线
                     br_o            <=  `Disabled       ;
                     bt_o            <=  `Zero           ;
+                    loadctl_o       <=  `NoLoad         ;
+                    storectl_o      <=  `NoStore        ;
+                    storedata_o     <=  `Zero           ;
+                    fromreg1        <=  `Disabled       ;
+                    fromreg2        <=  `Disabled       ;
                 end else begin // 可以判断是否需要跳转
                     // 2. 上一条读指令已经到了访存阶段，要写入的值可以在 EX/MEM
                     //    中找到，数据前推！(reg1data_n 和 reg2data_n 计算时完成)
@@ -177,6 +202,11 @@ always @(*) begin
                     stallreq_o      <=  `Disabled                                   ;
                     br_o            <=  br                                          ;
                     bt_o            <=  br == `Enabled ? pc + $signed(imm) : `Zero  ;
+                    loadctl_o       <=  `NoLoad                                     ;
+                    storectl_o      <=  `NoStore                                    ;
+                    storedata_o     <=  `Zero                                       ;
+                    fromreg1        <=  `Disabled                                   ;
+                    fromreg2        <=  `Disabled                                   ;
                 end
             end
             `JOpcode: begin // J-type 无条件跳转：op rd, imm(as offset) 只有 jal
@@ -192,6 +222,11 @@ always @(*) begin
                 stallreq_o      <=  `Disabled                                   ;
                 br_o            <=  br                                          ;
                 bt_o            <=  br == `Enabled ? pc + $signed(imm) : `Zero  ;
+                loadctl_o       <=  `NoLoad                                     ;
+                storectl_o      <=  `NoStore                                    ;
+                storedata_o     <=  `Zero                                       ;
+                fromreg1        <=  `Disabled                                   ; // pc
+                fromreg2        <=  `Disabled                                   ; // 4
             end
             `IOpcode3: begin // jalr rd, rs1, imm
                 reg1addr_o      <=  reg1addr                                            ;
@@ -206,6 +241,49 @@ always @(*) begin
                 stallreq_o      <=  `Disabled                                           ;
                 br_o            <=  br                                                  ;
                 bt_o            <=  br == `Enabled ? reg1data + $signed(imm) : `Zero    ;
+                loadctl_o       <=  `NoLoad                                             ;
+                storectl_o      <=  `NoStore                                            ;
+                storedata_o     <=  `Zero                                               ;
+                fromreg1        <=  `Disabled                                           ; // pc
+                fromreg2        <=  `Disabled                                           ; // 4
+            end
+            `IOpcode2: begin // load rd, rs1, imm
+                reg1addr_o      <=  reg1addr        ;
+                reg2addr_o      <=  `NopRegAddr     ;
+                reg1re_o        <=  `Enabled        ;
+                reg2re_o        <=  `Disabled       ;
+                alusel_o        <=  `AluAdd         ; // 要读的内存地址为 rs1 + imm
+                s1data_o        <=  reg1data        ;
+                s2data_o        <=  imm             ;
+                rd_o            <=  rd              ; // 读到的数据存到 rd
+                regwe_o         <=  `Enabled        ;
+                stallreq_o      <=  `Disabled       ;
+                br_o            <=  `Disabled       ;
+                bt_o            <=  `Zero           ;
+                loadctl_o       <=  funct3          ;
+                storectl_o      <=  `NoStore        ;
+                storedata_o     <=  `Zero           ;
+                fromreg1        <=  `Enabled        ; // reg1data
+                fromreg2        <=  `Disabled       ; // imm
+            end
+            `SOpcode: begin // store rs1, rs2, imm
+                reg1addr_o      <=  reg1addr        ;
+                reg2addr_o      <=  reg2addr        ;
+                reg1re_o        <=  `Enabled        ;
+                reg2re_o        <=  `Enabled        ;
+                alusel_o        <=  `AluAdd         ; // 要写的内存地址为 rs1 + imm
+                s1data_o        <=  reg1data        ;
+                s2data_o        <=  imm             ;
+                rd_o            <=  `NopRegAddr     ;
+                regwe_o         <=  `Disabled       ;
+                stallreq_o      <=  `Disabled       ;
+                br_o            <=  `Disabled       ;
+                bt_o            <=  `Zero           ;
+                loadctl_o       <=  `NoLoad         ;
+                storectl_o      <=  funct3          ;
+                storedata_o     <=  reg2data        ; // 要写的值来自 rs2
+                fromreg1        <=  `Enabled        ; // reg1data
+                fromreg2        <=  `Disabled       ; // imm
             end
             default: begin
             end
