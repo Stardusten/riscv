@@ -35,16 +35,12 @@ always @(*) begin
         rdata1 = `Zero;
         rdata2 = `Zero;
     end else begin
-        if (re1 == `Enabled) begin
-            rdata1 <= we == `Enabled && waddr == raddr1
-                ?  wdata
-                :  regs[raddr1];
-        end
-        if (re2 == `Enabled) begin
-            rdata2 <= we == `Enabled && waddr == raddr2
-                ?  wdata
-                :  regs[raddr2];
-        end
+        rdata1  <=  re1 == `Disabled ? `Zero
+                :   we == `Enabled && waddr == raddr1 ? wdata
+                :   regs[raddr1];
+        rdata2  <=  re2 == `Disabled ? `Zero
+                :   we == `Enabled && waddr == raddr2 ? wdata
+                :   regs[raddr2];
     end
 end
 

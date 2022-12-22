@@ -9,9 +9,11 @@ module id(
     // 用于分支检测数据前推的输入 --------------
     input   wire    [`RegAddrBus]   id_ex_rd        ,
     input   wire                    id_ex_regwe     ,
+    input   wire    [`LSBus]        id_ex_loadctl   ,
     input   wire    [`RegAddrBus]   ex_mem_rd       ,
     input   wire                    ex_mem_regwe    ,
     input   wire    [`RegBus]       ex_mem_wbdata   ,
+    input   wire    [`LSBus]        ex_mem_loadctl  ,
     // -----------------------------------------
     output  reg     [`RegAddrBus]   reg1addr_o      , // 连 regfile，要读的第一个寄存器地址
     output  reg     [`RegAddrBus]   reg2addr_o      , // 连 regfile，要读的第二个寄存器地址
@@ -163,11 +165,29 @@ always @(*) begin
             end
             `BOpcode: begin // B-type 分支指令：op rs1, rs2, imm
                 // 存在数据相关
-                // 1. 上一条读指令还在执行阶段，要写入的值还没算出来，
-                //    导致无法判断是否需要跳转，暂停流水线 TODO 分支预测
-                if (id_ex_regwe == `Enabled && reg1addr == id_ex_rd
-                 || id_ex_regwe == `Enabled && reg2addr == id_ex_rd) begin
-                    $display("stall! id_ex_regwe=%d", id_ex_regwe);
+                // 1. 上条指令（看 id_ex_loadctl）为 load 指令， 
+                //    而且 load 到现在要读的寄存器，则暂停流水线 (goto 2.)
+                // 2. 上上条指令（看 ex_mem_loadctl）为 load 指令，
+                //    而且 load 到现在要读的寄存器，则暂停流水线 (goto 3.)
+                // 3. 上上上条指令为 load 指令，而且 load 到现在要读的寄存器，
+                //    则当前应该正在写，regfile 会自动解决此冲突
+                // 4. 上一条不是 load 指令，要写寄存器，但还在执行阶段，要写入的值还没算出来， 
+                //    导致无法判断是否需要跳转，暂停流水线 TODO 分支预测 (goto 5.)
+                if (id_ex_regwe    == `Enabled && (reg1addr == id_ex_rd || reg2addr == id_ex_rd)                                // 4.
+                 || id_ex_loadctl  != `NoLoad && id_ex_regwe  == `Enabled && (reg1addr == id_ex_rd  || reg2addr == id_ex_rd )   // 1.
+                 || ex_mem_loadctl != `NoLoad && ex_mem_regwe == `Enabled && (reg1addr == ex_mem_rd || reg2addr == ex_mem_rd)   // 2.
+                ) begin
+                    //======== Debug =======
+                    if (id_ex_regwe    == `Enabled && (reg1addr == id_ex_rd || reg2addr == id_ex_rd)) begin
+                        $display("stall 4."); 
+                    end else if (id_ex_loadctl  != `NoLoad && id_ex_regwe  == `Enabled && (reg1addr == id_ex_rd  || reg2addr == id_ex_rd)) begin
+                        $display("stall 1.");
+                    end else if (ex_mem_loadctl != `NoLoad && ex_mem_regwe == `Enabled && (reg1addr == ex_mem_rd || reg2addr == ex_mem_rd)) begin
+                        $display("stall 2.");
+                    end else begin
+                        $display("IMPOSSIBLE!!!");
+                    end
+                    //======================
                     reg1addr_o      <=  `NopRegAddr     ;
                     reg2addr_o      <=  `NopRegAddr     ;
                     reg1re_o        <=  `Disabled       ;
@@ -186,10 +206,10 @@ always @(*) begin
                     fromreg1        <=  `Disabled       ;
                     fromreg2        <=  `Disabled       ;
                 end else begin // 可以判断是否需要跳转
-                    // 2. 上一条读指令已经到了访存阶段，要写入的值可以在 EX/MEM
-                    //    中找到，数据前推！(reg1data_n 和 reg2data_n 计算时完成)
-                    // 3. 上一条读指令已经到了写回阶段，此时直接读即可，regfile 在
-                    //    同时读写时会自动将要写的值作为输出，解决这一冲突
+                    // 5. 上一条读指令已经到了访存阶段，要写入的值可以在 EX/MEM
+                    //    中找到，数据前推！(reg1data_n 和 reg2data_n 计算时完成) (goto 6.)
+                    // 6. 上一条读指令已经到了写回阶段，此时直接读即可，regfile 在
+                    //    同时读写时会自动将要写的值作为输出，自动解决这一冲突
                     reg1addr_o      <=  reg1addr                                    ;
                     reg2addr_o      <=  reg2addr                                    ;
                     reg1re_o        <=  `Enabled                                    ;

@@ -122,8 +122,9 @@ id id0(
     // 来自 regfile 的输入
     .reg1data(id_reg1data), .reg2data(id_reg2data),
     // 用于数据前推的输入
-    .id_ex_rd(id_ex_rd), .id_ex_regwe(id_ex_regwe),
-    .ex_mem_rd(ex_mem_rd), .ex_mem_regwe(ex_mem_regwe), .ex_mem_wbdata(ex_mem_wbdata),
+    .id_ex_rd(id_ex_rd), .id_ex_regwe(id_ex_regwe), .id_ex_loadctl(id_ex_loadctl),
+    .ex_mem_rd(ex_mem_rd), .ex_mem_regwe(ex_mem_regwe),
+    .ex_mem_wbdata(ex_mem_wbdata), .ex_mem_loadctl(ex_mem_loadctl),
     // 送到 regfile 的输出
     .reg1re_o(id_reg1re), .reg2re_o(id_reg2re),
     .reg1addr_o(id_reg1addr), .reg2addr_o(id_reg2addr),
