@@ -30,11 +30,13 @@ module ex(
     output  reg     [`RegBus]       result          ,  // 运算结果
     output  reg     [`LSBus]        loadctl_o       ,
     output  reg     [`LSBus]        storectl_o      ,
-    output  reg     [`RegBus]       storedata_o     
+    output  reg     [`RegBus]       storedata_o     ,
+    // 送给分支预测模块用的，数据前推后正确的两个操作数
+    output  wire    [`RegBus]       s1data_n        ,
+    output  wire    [`RegBus]       s2data_n            
 );
 
 // 数据前推
-wire    [`RegBus]   s1data_n, s2data_n; // 新的输入输出
 // 如果 s1data 来自寄存器，而且这个寄存器被写了，数据前推！
 assign s1data_n = fromreg1 == `True && ex_mem_regwe == `True && reg1en == `True && ex_mem_rd == reg1addr   ?   ex_mem_wbdata
             :     fromreg1 == `True && wb_regwe     == `True && reg1en == `True && wb_rd     == reg1addr   ?   wb_wbdata
@@ -71,7 +73,7 @@ always @(*) begin
             `AluAnd     :   result  <=  s1data_n & s2data_n                         ;
             `AluUlt     :   result  <=  $unsigned(s1data_n) < $unsigned(s2data_n)   ;
             `AluSlt     :   result  <=  $signed(s1data_n) < $signed(s2data_n)       ;
-            default     :   result  <= `Zero                                    ;
+            default     :   result  <= `Zero                                        ;
         endcase
     end
 end

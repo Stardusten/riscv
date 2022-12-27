@@ -49,6 +49,18 @@ wire    [`LSBus]        id_storectl     ;
 wire    [`RegBus]       id_storedata    ;
 wire                    id_fromreg1     ;
 wire                    id_fromreg2     ;
+// 连接 ID 与分支预测模块
+wire    [2:0]           id_funct3       ;
+wire                    id_predreq      ;
+wire                    id_reg1known    ;
+wire                    id_reg2known    ;
+wire    [`RegBus]       id_offset       ;
+wire    [`InstAddrBus]  id_pc           ;
+
+// 分支预测模块
+wire                    br_pred_brpred  ;
+wire    [`RegBus]       br_pred_btpred  ;
+wire                    br_pred_mispred ;
 
 // 连接 ID/EX 与 EX
 wire    [`AluSelBus]    id_ex_alusel    ;
@@ -73,6 +85,9 @@ wire    [`RegBus]       ex_result       ;
 wire    [`LSBus]        ex_loadctl      ;
 wire    [`LSBus]        ex_storectl     ;
 wire    [`RegBus]       ex_storedata    ;
+
+wire    [`RegBus]       ex_s1data_n     ;
+wire    [`RegBus]       ex_s2data_n     ;
 
 // 连接 EX/MEM 与 MEM
 wire    [`RegAddrBus]   ex_mem_rd       ;
@@ -106,8 +121,8 @@ pc pc0(
     // 分支
     .br(pc_br), .bt(pc_bt));
 assign pc_stallreq = stall[0];
-assign pc_br = id_br;
-assign pc_bt = id_bt;
+assign pc_br = br_pred_brpred || id_br;
+assign pc_bt = br_pred_brpred ? br_pred_btpred : id_bt; // 优先考虑分支预测模块的跳转目标
 
 assign romen = pc_ce;
 assign instaddr = pc_pc;
@@ -115,7 +130,7 @@ assign instaddr = pc_pc;
 if_id if_id0(.clk(clk), .rst(rst), .pc(pc_pc), .inst(inst),
     .flushreq(if_id_flushreq), .stall(stall),
     .pc_o(if_id_pc), .inst_o(if_id_inst));
-assign if_id_flushreq = id_br; // 如果需要跳转，则冲刷流水线
+assign if_id_flushreq = id_br || br_pred_brpred; // 如果需要跳转，则冲刷流水线
 
 id id0(
     .rst(rst), .pc(if_id_pc), .inst(if_id_inst),
@@ -135,7 +150,19 @@ id id0(
     // load, store 控制信号
     .loadctl_o(id_loadctl), .storectl_o(id_storectl), .storedata_o(id_storedata),
     // 是否来自寄存器
-    .fromreg1(id_fromreg1), .fromreg2(id_fromreg2)
+    .fromreg1(id_fromreg1), .fromreg2(id_fromreg2),
+    // 送分支预测模块
+    .funct3_o(id_funct3), .predreq_o(id_predreq),
+    .reg1known_o(id_reg1known), .reg2known_o(id_reg2known),
+    .offset_o(id_offset), .pc_o(id_pc)
+);
+
+br_pred br_pred0(
+    .clk(clk), .rst(rst), .pc(id_pc), .predreq(id_predreq),
+    .funct3(id_funct3), .s1data_n(ex_s1data_n), .s2data_n(ex_s2data_n),
+    .reg1known(id_reg1known), .reg2known(id_reg2known),
+    .offset(id_offset), .ex_mem_wbdata(ex_mem_wbdata),
+    .brpred_o(br_pred_brpred), .btpred_o(br_pred_btpred), .mispred_o(br_pred_mispred)
 );
 
 regfile regfile0(
@@ -182,7 +209,8 @@ ex ex0(
     .rd_o(ex_rd), .regwe_o(ex_regwe), .result(ex_result),
     .loadctl_o(ex_loadctl), .storectl_o(ex_storectl), .storedata_o(ex_storedata),
     // 流水线暂停控制
-    .stallreq(ex_stallreq)
+    .stallreq(ex_stallreq),
+    .s1data_n(ex_s1data_n), .s2data_n(ex_s2data_n)
 );
 
 ex_mem ex_mem0(
